@@ -1,0 +1,6 @@
+1) The eight registers a0-a7 contain integer arguments and eight registers fa0-fa7 contain floating point arguments. Register a2 holds 13 in main's call to printf.
+2) The compiler inlines the calls to f and g as an optimization and hence the function calls are replaced by return values.
+3) 642 
+4) 0x38
+5) The output is HE110 World. We need to set i = 0x726c64 for a big endian system. No need to change the 57616 to a different value. 
+6) Whatever was stored in the register a2. This happens because C calling convention uses registers a0-a7 for passing arguments to functions. The register a0 is used to pass the pointer to the string, a1 is used to pass 3 and a2 is not updated so it uses the old value.

@@ -98,10 +98,15 @@ struct proc {
   // these are private to the process, so p->lock need not be held.
   uint64 kstack;               // Virtual address of kernel stack
   uint64 sz;                   // Size of process memory (bytes)
+  uint64 ticks_passed;         // Ticks passed since last alarm
+  int alarm_interrupt;      // ticks after which alarm should be fired
   pagetable_t pagetable;       // User page table
   struct trapframe *trapframe; // data page for trampoline.S
+  struct trapframe *alarmframe; // data page for storing snapshot of trapframe for alarm interrupts
   struct context context;      // swtch() here to run process
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+  void (*alarm_handler)();     // handler function to fire upon every alarm trigger
+  int handling;               // boolean indicating if we are handling the alarm interrupr
 };
