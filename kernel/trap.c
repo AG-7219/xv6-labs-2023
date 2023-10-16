@@ -67,12 +67,58 @@ usertrap(void)
     syscall();
   } else if((which_dev = devintr()) != 0){
     // ok
+  } else if(r_scause() == 15){
+    // write fault
+    char* mem;
+    uint64 va = r_stval(), pa, flags;
+    va = PGROUNDDOWN(va);
+    pte_t* pte;
+
+    if(va >= MAXVA){
+      printf("usertrap(): accessing VA greater than MAXVA\n");
+      setkilled(p);
+      goto end;
+    }
+
+    if((pte = walk(p->pagetable, va, 0)) == 0 || (*pte & PTE_U) == 0){
+      printf("usertrap(): access to unmapped memory\n");
+      setkilled(p);
+      goto end;
+    }
+
+    if((*pte & PTE_OW) == 0){
+      printf("usertrap(): write to a read only page\n");
+      setkilled(p);
+      goto end;
+    }
+
+    if((mem = kalloc()) == 0){
+      printf("usertrap(): failed to allocate memory for new COW page\n");
+      setkilled(p);
+      goto end;
+    }
+
+    pa = PTE2PA(*pte);
+    flags = PTE_FLAGS(*pte);
+    flags &= ~PTE_COW; flags &= ~PTE_OW; flags |= PTE_W;
+    memmove(mem, (char*)pa, PGSIZE);
+    uvmunmap(p->pagetable, va, 1, 0);
+
+    if(mappages(p->pagetable, va, PGSIZE, (uint64)mem, flags) != 0){
+      kfree(mem);
+      printf("usertrap(): failed to map the new page in process page table\n");
+      setkilled(p);
+      goto end;
+    }
+
+    kfree((void *)pa);
+
   } else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
     setkilled(p);
   }
-
+end:
   if(killed(p))
     exit(-1);
 
